@@ -373,3 +373,11 @@ FodyWeavers.xsd
 !.env.dist
 appsettings.*.Local.json
 **/appsettings.*.Local.json
+
+# Carpetas/archivos de Claude Code y notas de IA: no versionar
+.claude/
+**/.claude/
+claude/
+**/claude/
+CLAUDE.md
+**/CLAUDE.md

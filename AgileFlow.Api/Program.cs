@@ -127,7 +127,8 @@ using (var scope = app.Services.CreateScope())
     await dbContext.Database.MigrateAsync();
 
     var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
-    await DbSeeder.SeedAsync(dbContext, passwordHasher);
+    var seedOptions = scope.ServiceProvider.GetRequiredService<SeedOptions>();
+    await DbSeeder.SeedAsync(dbContext, passwordHasher, seedOptions);
 }
 
 app.Run();

@@ -1,0 +1,69 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: agileflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      # Puerto en el HOST configurable: evita chocar con un PostgreSQL nativo
+      # que ya ocupe el 5432. Dentro de la red de Docker siempre es 5432.
+      - "${POSTGRES_HOST_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: AgileFlow.Api/Dockerfile
+    container_name: agileflow-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Convención ASP.NET Core: "__" = separador de sección.
+      # Todos los valores vienen de .env — nada hardcodeado aquí.
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Jwt__Secret: ${JWT_SECRET}
+      Jwt__Issuer: ${JWT_ISSUER}
+      Jwt__Audience: ${JWT_AUDIENCE}
+      Security__PasswordPepper: ${PASSWORD_PEPPER}
+      Cors__AllowedOrigin: ${FRONTEND_URL}
+      # Usuarios precargados. Los arreglos se expresan con índices numéricos:
+      # Seed__Users__0__Email equivale a Seed:Users[0]:Email.
+      Seed__Users__0__FullName: ${SEED_ADMIN_FULLNAME}
+      Seed__Users__0__Email: ${SEED_ADMIN_EMAIL}
+      Seed__Users__0__Password: ${SEED_ADMIN_PASSWORD}
+      Seed__Users__1__FullName: ${SEED_USER_FULLNAME}
+      Seed__Users__1__Email: ${SEED_USER_EMAIL}
+      Seed__Users__1__Password: ${SEED_USER_PASSWORD}
+      # Development para exponer Swagger (Program.cs solo lo habilita en ese entorno).
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      - "8080:8080"
+
+  # TODO: el proyecto Angular (frontend/) todavía no existe en el repositorio.
+  # Cuando se agregue junto con su frontend/Dockerfile (nginx sirviendo el build
+  # de producción), descomentar este servicio y ajustar el puerto.
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: agileflow-frontend
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - api
+  #   ports:
+  #     - "4200:80"
+
+volumes:
+  postgres_data:

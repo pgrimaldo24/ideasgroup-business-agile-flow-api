@@ -39,8 +39,6 @@ public class PasswordHasher : IPasswordHasher
 
     private byte[] DeriveKey(string plainPassword, byte[] saltBytes)
     {
-        // Se concatena el pepper a la contraseña antes de derivar la clave;
-        // el pepper vive solo en configuración del servidor, nunca en la BD.
         var pepperedPassword = plainPassword + _pepper;
 
         return Rfc2898DeriveBytes.Pbkdf2(pepperedPassword, saltBytes, Iterations, Algorithm, KeySizeBytes);

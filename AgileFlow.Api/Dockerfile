@@ -1,17 +1,20 @@
+# Build desde la RAÍZ del repositorio:
+#   docker build -f AgileFlow.Api/Dockerfile .
+# (docker-compose.yml ya lo hace con context: . )
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
+# Copiar primero solo los .csproj para aprovechar la caché de capas en restore.
 COPY AgileFlowApi.sln .
-COPY src/AgileFlow.Domain/Kanban.Domain.csproj src/Kanban.Domain/
-COPY src/AgileFlow.Application/Kanban.Application.csproj src/Kanban.Application/
-COPY src/AgileFlow.Infrastructure/Kanban.Infrastructure.csproj src/Kanban.Infrastructure/
-COPY src/AgileFlow.Api/Kanban.Api.csproj src/Kanban.Api/
-COPY tests/AgileFlow.Application.Tests/Kanban.Application.Tests.csproj tests/Kanban.Application.Tests/
+COPY AgileFlow.Domain/AgileFlow.Domain.csproj AgileFlow.Domain/
+COPY AgileFlow.Application/AgileFlow.Application.csproj AgileFlow.Application/
+COPY AgileFlow.Infrastructure/AgileFlow.Infrastructure.csproj AgileFlow.Infrastructure/
+COPY AgileFlow.Api/AgileFlow.Api.csproj AgileFlow.Api/
 
-RUN dotnet restore src/Kanban.Api/Kanban.Api.csproj
+RUN dotnet restore AgileFlow.Api/AgileFlow.Api.csproj
 
 COPY . .
-RUN dotnet publish src/Kanban.Api/Kanban.Api.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish AgileFlow.Api/AgileFlow.Api.csproj -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app

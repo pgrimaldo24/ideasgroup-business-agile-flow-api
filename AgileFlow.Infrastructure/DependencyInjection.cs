@@ -5,6 +5,7 @@ using AgileFlow.Application.UseCases.Tasks;
 using AgileFlow.Infrastructure.Persistence;
 using AgileFlow.Infrastructure.Persistence.Queries;
 using AgileFlow.Infrastructure.Persistence.Repositories;
+using AgileFlow.Infrastructure.Persistence.Seed;
 using AgileFlow.Infrastructure.Realtime;
 using AgileFlow.Infrastructure.Reports;
 using AgileFlow.Infrastructure.Security;
@@ -29,6 +30,10 @@ public static class DependencyInjection
                 "Falta configurar ConnectionStrings:Default (variable de entorno CONNECTION_STRING).");
 
         services.AddDbContext<KanbanDbContext>(options => options.UseNpgsql(connectionString));
+         
+        var seedOptions = configuration.GetSection(SeedOptions.SectionName).Get<SeedOptions>()
+            ?? new SeedOptions();
+        services.AddSingleton(seedOptions);
 
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<IUserRepository, UserRepository>();
@@ -41,15 +46,11 @@ public static class DependencyInjection
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
 
         services.AddScoped<IBoardRealtimeNotifier, SignalRBoardRealtimeNotifier>();
-
-        // Exportadores de reporte: cada uno se registra como IProjectReportExporter;
-        // el resolver los recibe todos vía IEnumerable<IProjectReportExporter>.
+         
         services.AddScoped<IProjectReportExporter, PdfProjectReportExporter>();
         services.AddScoped<IProjectReportExporter, ExcelProjectReportExporter>();
         services.AddScoped<IProjectReportExporterResolver, ProjectReportExporterResolver>();
 
-        // Casos de uso de Application (se registran aquí para mantener
-        // AgileFlow.Api libre de referencias a Application más allá de los DTOs).
         services.AddScoped<LoginUseCase>();
         services.AddScoped<ReorderTaskUseCase>();
         services.AddScoped<GenerateProjectReportUseCase>();

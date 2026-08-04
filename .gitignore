@@ -361,4 +361,15 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-/Oechsle.Acuerdos.Comerciales.Api/Configuration/Startup.cs
+
+# Secretos y configuración local: nunca versionar (requisito de la prueba).
+# El .env real queda fuera; las PLANTILLAS sí se versionan (solo traen valores
+# de desarrollo). Se permiten varios nombres de plantilla por si se renombra.
+.env
+.env.*
+!.env.example
+!.env.template
+!.env.sample
+!.env.dist
+appsettings.*.Local.json
+**/appsettings.*.Local.json

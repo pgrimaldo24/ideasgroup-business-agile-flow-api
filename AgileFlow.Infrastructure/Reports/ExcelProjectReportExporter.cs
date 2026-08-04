@@ -44,8 +44,6 @@ public class ExcelProjectReportExporter : IProjectReportExporter
             row++;
         }
 
-        // Anchos de columna adecuados (req. 6.8), en vez de dejar el ancho
-        // por defecto de Excel, que suele truncar títulos largos.
         sheet.Column(1).Width = 40;
         sheet.Column(2).Width = 20;
         sheet.Column(3).Width = 25;

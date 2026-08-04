@@ -8,8 +8,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      # Puerto en el HOST configurable: evita chocar con un PostgreSQL nativo
-      # que ya ocupe el 5432. Dentro de la red de Docker siempre es 5432.
       - "${POSTGRES_HOST_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -20,6 +18,14 @@ services:
       retries: 10
       start_period: 10s
 
+  tests:
+    build:
+      context: .
+      dockerfile: AgileFlow.Api/Dockerfile
+      target: test
+    container_name: agileflow-tests
+    restart: "no"
+
   api:
     build:
       context: .
@@ -29,24 +35,21 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      tests:
+        condition: service_completed_successfully
     environment:
-      # Convención ASP.NET Core: "__" = separador de sección.
-      # Todos los valores vienen de .env — nada hardcodeado aquí.
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       Jwt__Secret: ${JWT_SECRET}
       Jwt__Issuer: ${JWT_ISSUER}
       Jwt__Audience: ${JWT_AUDIENCE}
       Security__PasswordPepper: ${PASSWORD_PEPPER}
       Cors__AllowedOrigin: ${FRONTEND_URL}
-      # Usuarios precargados. Los arreglos se expresan con índices numéricos:
-      # Seed__Users__0__Email equivale a Seed:Users[0]:Email.
       Seed__Users__0__FullName: ${SEED_ADMIN_FULLNAME}
       Seed__Users__0__Email: ${SEED_ADMIN_EMAIL}
       Seed__Users__0__Password: ${SEED_ADMIN_PASSWORD}
       Seed__Users__1__FullName: ${SEED_USER_FULLNAME}
       Seed__Users__1__Email: ${SEED_USER_EMAIL}
       Seed__Users__1__Password: ${SEED_USER_PASSWORD}
-      # Development para exponer Swagger (Program.cs solo lo habilita en ese entorno).
       ASPNETCORE_ENVIRONMENT: Development
     ports:
       - "8080:8080"

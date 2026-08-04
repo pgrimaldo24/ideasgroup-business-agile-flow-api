@@ -88,10 +88,11 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Esto levanta 2 servicios:
+Esto levanta 3 servicios:
 
 - postgres: base de datos, con healthcheck (pg_isready).
-- api: espera a que Postgres esté healthy, y al arrancar:
+- tests: ejecuta las 77 pruebas unitarias de AgileFlow.Tests y termina. Actúa como quality gate: si alguna falla, el contenedor sale con código distinto de 0 y **la API no arranca** (`docker compose up` aborta con `service "tests" didn't complete successfully`). No necesita base de datos ni variables de entorno. Ver sección 10.
+- api: espera a que Postgres esté healthy **y a que los tests hayan pasado**, y al arrancar:
   1. Ejecuta Database.MigrateAsync() → aplica todas las migraciones pendientes, en orden, contra la BD (construye el esquema desde cero si la BD está vacía).
   2. Ejecuta DbSeeder.SeedAsync() → crea los 2 usuarios precargados si no existen ya (operación idempotente, no duplica en reinicios).
   3. Queda escuchando en http://localhost:8080.
@@ -248,12 +249,38 @@ Ejecutado en Program.cs, inmediatamente después de Database.MigrateAsync(), reu
 
 ## 10. Pruebas
 
+Proyecto `AgileFlow.Tests` (un solo ensamblado, organizado en carpetas `Domain/`, `Application/` e `Infrastructure/`). **77 pruebas unitarias**, todas en verde.
+
+Stack: **xUnit** + **NSubstitute** (dobles de prueba) + **FluentAssertions** + **EF Core InMemory** (para `DbSeeder`). No requieren base de datos ni contenedores: se ejecutan en memoria.
+
+> FluentAssertions está fijado en la versión 6.x a propósito: la 8.x cambió a licencia comercial de pago.
+
+### Qué se cubre
+
+| Clase | Foco |
+|---|---|
+| `TaskOrderingService` | Posicionamiento fraccional: columna vacía, inicio, final, punto medio, vecinos en orden inválido y hueco agotado (rebalanceo) |
+| `KanbanTask`, `Project`, `BoardColumn`, `User`, `Entity` | Invariantes del dominio, normalización de texto/email, y que un fallo de validación no deje la entidad a medias |
+| `LoginUseCase` | Camino feliz, normalización del email antes de consultar, y que usuario inexistente y password incorrecta devuelvan el mismo mensaje (no filtrar si el email existe) |
+| `ReorderTaskUseCase` | Cálculo de la nueva posición, exclusión de la tarea movida al pedir vecinos, `NotFoundException`, y que el commit ocurra antes de notificar por SignalR |
+| `GenerateProjectReportUseCase` | Metadatos del archivo, saneado del nombre, y que la BD se consulte una sola vez |
+| `PasswordHasher` | Salt distinto por hash, contraseña nunca en claro, y que otro pepper no valide el hash |
+| `ProjectReportExporterResolver` | Resolución case-insensitive y extensibilidad del Strategy (agregar un formato no toca el resolver) |
+| `DbSeeder` | Idempotencia, alta incremental de un usuario nuevo, no duplicar con email en mayúsculas, y validación de entradas incompletas |
+
+### Ejecutar localmente
+
 ```bash
-cd backend
-dotnet test
+dotnet test                                     # toda la solución
+dotnet test --filter FullyQualifiedName~Domain  # solo una capa
+dotnet test --collect:"XPlat Code Coverage"     # con reporte de cobertura
 ```
 
-Al menos 5 pruebas unitarias del backend sobre lógica de dominio/aplicación, incluyendo obligatoriamente el cálculo de la nueva posición al reordenar (TaskOrderingService.CalculateNewPosition).
+Cobertura de línea: **100%** en los tres casos de uso, `DbSeeder`, `PasswordHasher` y el resolver; entre 68% y 97% en las entidades de dominio. Los adaptadores (repositorios EF, SignalR, exportadores QuestPDF/ClosedXML y las migraciones) quedan fuera a propósito: solo tienen sentido probarlos en integración, no en pruebas unitarias.
+
+### Ejecución automática al levantar con Docker
+
+Los tests **también corren dentro de `docker compose up`**, como quality gate: el servicio `tests` ejecuta la suite y la API solo arranca si termina con código 0. Ver sección 5.
 
 ---
 
@@ -281,3 +308,4 @@ Al menos 5 pruebas unitarias del backend sobre lógica de dominio/aplicación, i
 | FATAL: la autentificación password falló en pgAdmin | El volumen de Postgres ya se inicializó con credenciales distintas a las actuales del .env (Postgres solo lee esas variables la primera vez que crea el volumen) | docker compose down -v seguido de docker compose up --build (borra y recrea el volumen con las credenciales actuales) — usar solo en desarrollo, borra los datos |
 | Cambios de código no se reflejan al levantar | Se usó docker compose up sin --build, o stop/start en vez de reconstruir | Usar siempre docker compose up --build tras modificar código |
 | No migrations were applied. The database is already up to date. | Comportamiento esperado si no hay migraciones nuevas pendientes | No es un error |
+| service "tests" didn't complete successfully: exit 1 y la API queda en estado Created sin arrancar | Una prueba unitaria está fallando: el quality gate bloquea el levantamiento a propósito | Ver el detalle con docker compose logs tests (o dotnet test en local) y corregir. Para levantar igual saltándose el gate en una demo: docker compose up -d postgres seguido de docker compose up -d --no-deps api |

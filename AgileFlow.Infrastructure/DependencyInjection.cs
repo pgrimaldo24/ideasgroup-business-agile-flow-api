@@ -1,5 +1,7 @@
 using AgileFlow.Application.Ports;
 using AgileFlow.Application.UseCases.Auth;
+using AgileFlow.Application.UseCases.Columns;
+using AgileFlow.Application.UseCases.Projects;
 using AgileFlow.Application.UseCases.Reports;
 using AgileFlow.Application.UseCases.Tasks;
 using AgileFlow.Infrastructure.Persistence;
@@ -54,6 +56,12 @@ public static class DependencyInjection
         services.AddScoped<LoginUseCase>();
         services.AddScoped<ReorderTaskUseCase>();
         services.AddScoped<GenerateProjectReportUseCase>();
+        services.AddScoped<ListProjectsUseCase>();
+        services.AddScoped<CreateProjectUseCase>();
+        services.AddScoped<ListBoardColumnsUseCase>();
+        services.AddScoped<CreateBoardColumnUseCase>();
+        services.AddScoped<ListKanbanTasksUseCase>();
+        services.AddScoped<CreateKanbanTaskUseCase>();
 
         return services;
     }

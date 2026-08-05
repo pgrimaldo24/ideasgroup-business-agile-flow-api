@@ -9,6 +9,7 @@ public interface IKanbanTaskRepository
     Task<IReadOnlyList<KanbanTask>> GetByProjectIdAsync(Guid projectId, CancellationToken ct = default);
     Task<(KanbanTask? Previous, KanbanTask? Next)> GetNeighborsAsync(
         Guid columnId, int targetIndex, Guid? excludeTaskId, CancellationToken ct = default);
+    Task<decimal?> GetLastPositionAsync(Guid columnId, CancellationToken ct = default);
     Task AddAsync(KanbanTask task, CancellationToken ct = default);
     void Remove(KanbanTask task);
 }

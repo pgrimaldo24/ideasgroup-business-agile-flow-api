@@ -53,6 +53,13 @@ public class KanbanTaskRepository : IKanbanTaskRepository
         return (window.ElementAtOrDefault(0), window.ElementAtOrDefault(1));
     }
 
+    public Task<decimal?> GetLastPositionAsync(Guid columnId, CancellationToken ct = default) =>
+        _context.KanbanTasks.AsNoTracking()
+            .Where(t => t.ColumnId == columnId)
+            .OrderByDescending(t => t.Position)
+            .Select(t => (decimal?)t.Position)
+            .FirstOrDefaultAsync(ct);
+
     public async Task AddAsync(KanbanTask task, CancellationToken ct = default) =>
         await _context.KanbanTasks.AddAsync(task, ct);
 

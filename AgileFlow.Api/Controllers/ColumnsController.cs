@@ -12,13 +12,22 @@ public class ColumnsController : ControllerBase
 {
     private readonly ListBoardColumnsUseCase _listBoardColumnsUseCase;
     private readonly CreateBoardColumnUseCase _createBoardColumnUseCase;
+    private readonly UpdateBoardColumnUseCase _updateBoardColumnUseCase;
+    private readonly DeleteBoardColumnUseCase _deleteBoardColumnUseCase;
+    private readonly ReorderBoardColumnUseCase _reorderBoardColumnUseCase;
 
     public ColumnsController(
         ListBoardColumnsUseCase listBoardColumnsUseCase,
-        CreateBoardColumnUseCase createBoardColumnUseCase)
+        CreateBoardColumnUseCase createBoardColumnUseCase,
+        UpdateBoardColumnUseCase updateBoardColumnUseCase,
+        DeleteBoardColumnUseCase deleteBoardColumnUseCase,
+        ReorderBoardColumnUseCase reorderBoardColumnUseCase)
     {
         _listBoardColumnsUseCase = listBoardColumnsUseCase;
         _createBoardColumnUseCase = createBoardColumnUseCase;
+        _updateBoardColumnUseCase = updateBoardColumnUseCase;
+        _deleteBoardColumnUseCase = deleteBoardColumnUseCase;
+        _reorderBoardColumnUseCase = reorderBoardColumnUseCase;
     }
 
     [HttpGet]
@@ -37,6 +46,36 @@ public class ColumnsController : ControllerBase
 
         return StatusCode(StatusCodes.Status201Created, column);
     }
+
+    [HttpPut("/api/columns/{columnId:guid}")]
+    public async Task<ActionResult<BoardColumnDto>> Update(
+        Guid columnId, [FromBody] UpdateBoardColumnRequest request, CancellationToken ct)
+    {
+        var command = new UpdateBoardColumnCommand(columnId, request.Name);
+        var column = await _updateBoardColumnUseCase.ExecuteAsync(command, ct);
+
+        return Ok(column);
+    }
+
+    [HttpDelete("/api/columns/{columnId:guid}")]
+    public async Task<IActionResult> Delete(Guid columnId, CancellationToken ct)
+    {
+        await _deleteBoardColumnUseCase.ExecuteAsync(new DeleteBoardColumnCommand(columnId), ct);
+
+        return NoContent();
+    }
+
+    [HttpPatch("/api/columns/{columnId:guid}/reorder")]
+    public async Task<ActionResult<BoardColumnDto>> Reorder(
+        Guid columnId, [FromBody] ReorderBoardColumnRequest request, CancellationToken ct)
+    {
+        var command = new ReorderBoardColumnCommand(columnId, request.TargetIndex);
+        var column = await _reorderBoardColumnUseCase.ExecuteAsync(command, ct);
+
+        return Ok(column);
+    }
 }
 
 public record CreateBoardColumnRequest(string Name);
+public record UpdateBoardColumnRequest(string Name);
+public record ReorderBoardColumnRequest(int TargetIndex);

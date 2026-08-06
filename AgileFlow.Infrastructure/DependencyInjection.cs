@@ -60,6 +60,9 @@ public static class DependencyInjection
         services.AddScoped<CreateProjectUseCase>();
         services.AddScoped<ListBoardColumnsUseCase>();
         services.AddScoped<CreateBoardColumnUseCase>();
+        services.AddScoped<UpdateBoardColumnUseCase>();
+        services.AddScoped<DeleteBoardColumnUseCase>();
+        services.AddScoped<ReorderBoardColumnUseCase>();
         services.AddScoped<ListKanbanTasksUseCase>();
         services.AddScoped<CreateKanbanTaskUseCase>();
 

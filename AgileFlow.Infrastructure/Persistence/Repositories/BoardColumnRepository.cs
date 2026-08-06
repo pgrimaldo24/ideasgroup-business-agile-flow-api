@@ -29,6 +29,22 @@ public class BoardColumnRepository : IBoardColumnRepository
             .Select(c => (decimal?)c.Position)
             .FirstOrDefaultAsync(ct);
 
+    public async Task<(BoardColumn? Previous, BoardColumn? Next)> GetNeighborsAsync(
+        Guid projectId, int targetIndex, Guid excludeColumnId, CancellationToken ct = default)
+    {
+        var orderedQuery = _context.BoardColumns.AsNoTracking()
+            .Where(c => c.ProjectId == projectId && c.Id != excludeColumnId)
+            .OrderBy(c => c.Position);
+
+        var skip = Math.Max(targetIndex - 1, 0);
+        var window = await orderedQuery.Skip(skip).Take(2).ToListAsync(ct);
+
+        if (targetIndex <= 0)
+            return (null, window.ElementAtOrDefault(0));
+
+        return (window.ElementAtOrDefault(0), window.ElementAtOrDefault(1));
+    }
+
     public async Task AddAsync(BoardColumn column, CancellationToken ct = default) =>
         await _context.BoardColumns.AddAsync(column, ct);
 

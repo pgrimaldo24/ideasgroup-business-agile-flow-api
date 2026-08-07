@@ -4,6 +4,23 @@ Backend de una plataforma de gestión ágil (tablero Kanban en tiempo real), con
 
 ---
 
+## Última actualización
+
+CRUD completo de columnas del tablero. Se agregaron las 3 operaciones que faltaban sobre `BoardColumn` (crear y listar ya existían):
+
+| Operación | Endpoint | Body |
+|---|---|---|
+| Renombrar | `PUT /api/columns/{columnId}` | `{ "name": string }` |
+| Eliminar | `DELETE /api/columns/{columnId}` | — |
+| Reordenar | `PATCH /api/columns/{columnId}/reorder` | `{ "targetIndex": number }` |
+
+Detalles relevantes:
+- Eliminar una columna con tareas dentro está bloqueado a propósito (regla de negocio del reto): devuelve 409 vía `DomainException`.
+- Reordenar reutiliza el mismo mecanismo de posicionamiento fraccional de las tareas (`TaskOrderingService.CalculateNewPosition`, ver sección 9.3) — no hay una implementación paralela para columnas.
+- El reorder de columnas no se propaga por SignalR: el tiempo real del reto aplica solo a tareas.
+
+---
+
 ## 1. Stack técnico
 
 | Componente | Tecnología |
@@ -229,6 +246,8 @@ Ventaja: mover una tarea implica una sola escritura en base de datos (la fila mo
 
 Columna: numeric(18,6) con índice compuesto (column_id, position) — es la consulta más frecuente del tablero y la que resuelve los vecinos al reordenar (GetNeighborsAsync, una sola consulta con OFFSET/LIMIT 2).
 
+El reorder de columnas dentro de un proyecto sigue exactamente el mismo patrón: IBoardColumnRepository.GetNeighborsAsync resuelve los vecinos con una sola consulta (ordenada por Position, excluyendo la columna movida), y ReorderBoardColumnUseCase delega el cálculo en el mismo TaskOrderingService.CalculateNewPosition — no existe una copia de esta lógica para columnas.
+
 ### 9.4. Exportación dual (PDF/Excel) — patrón Strategy
 
 IProjectReportExporter es implementado independientemente por PdfProjectReportExporter (QuestPDF) y ExcelProjectReportExporter (ClosedXML). Ambos consumen el mismo ProjectReportDto, construido con una sola consulta (IProjectReportQuery, un único JOIN proyectado a DTO). IProjectReportExporterResolver elige el exportador correcto en tiempo de ejecución a partir de todos los registrados en DI (IEnumerable<IProjectReportExporter>).
@@ -249,7 +268,7 @@ Ejecutado en Program.cs, inmediatamente después de Database.MigrateAsync(), reu
 
 ## 10. Pruebas
 
-Proyecto `AgileFlow.Tests` (un solo ensamblado, organizado en carpetas `Domain/`, `Application/` e `Infrastructure/`). **77 pruebas unitarias**, todas en verde.
+Proyecto `AgileFlow.Tests` (un solo ensamblado, organizado en carpetas `Domain/`, `Application/` e `Infrastructure/`). **81 pruebas unitarias**, todas en verde.
 
 Stack: **xUnit** + **NSubstitute** (dobles de prueba) + **FluentAssertions** + **EF Core InMemory** (para `DbSeeder`). No requieren base de datos ni contenedores: se ejecutan en memoria.
 
@@ -263,6 +282,8 @@ Stack: **xUnit** + **NSubstitute** (dobles de prueba) + **FluentAssertions** + *
 | `KanbanTask`, `Project`, `BoardColumn`, `User`, `Entity` | Invariantes del dominio, normalización de texto/email, y que un fallo de validación no deje la entidad a medias |
 | `LoginUseCase` | Camino feliz, normalización del email antes de consultar, y que usuario inexistente y password incorrecta devuelvan el mismo mensaje (no filtrar si el email existe) |
 | `ReorderTaskUseCase` | Cálculo de la nueva posición, exclusión de la tarea movida al pedir vecinos, `NotFoundException`, y que el commit ocurra antes de notificar por SignalR |
+| `DeleteBoardColumnUseCase` | Rechazo con `DomainException` al eliminar una columna con tareas; eliminación y commit cuando está vacía |
+| `ReorderBoardColumnUseCase` | Cálculo de la nueva posición reutilizando `TaskOrderingService`, con los vecinos resueltos vía `GetNeighborsAsync` |
 | `GenerateProjectReportUseCase` | Metadatos del archivo, saneado del nombre, y que la BD se consulte una sola vez |
 | `PasswordHasher` | Salt distinto por hash, contraseña nunca en claro, y que otro pepper no valide el hash |
 | `ProjectReportExporterResolver` | Resolución case-insensitive y extensibilidad del Strategy (agregar un formato no toca el resolver) |
@@ -292,11 +313,7 @@ Los tests **también corren dentro de `docker compose up`**, como quality gate: 
 
 ## 12. Diagrama del modelo de base de datos
 
-(Insertar aquí la imagen del diagrama, embebida directamente en este README, no como enlace externo ni notación de otra herramienta que no se renderice en GitHub.)
-
-```
 ![Diagrama de base de datos](./docs/db-diagram.png)
-```
 
 ---
 

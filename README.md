@@ -307,7 +307,16 @@ Los tests **también corren dentro de `docker compose up`**, como quality gate: 
 
 ## 11. Uso de asistentes de inteligencia artificial
 
-(Completar según corresponda antes de la entrega — declarar explícitamente qué herramientas de IA se usaron y en qué partes del desarrollo: diseño de arquitectura, generación de código boilerplate, redacción de este README, debugging, etc. Si no se usó ninguna, declararlo también.)
+Se usó **Claude Code** (Anthropic, modelo Claude Sonnet 5) como asistente de desarrollo durante buena parte del backend, como práctica deliberada de *prompt engineering* aplicada a codificación: en vez de pedir cambios de forma ambigua, cada tanda de trabajo se guio con un prompt propio, escrito y versionado temporalmente en `claude/*.md` (carpeta excluida del repo vía `.gitignore` — quedan como notas de trabajo, no como parte del entregable), que fijaba de antemano el contexto real del código existente, el alcance exacto pedido y las restricciones no negociables (arquitectura hexagonal a respetar, patrón a replicar de casos de uso ya existentes como `ReorderTaskUseCase`/`LoginUseCase`, sin comentarios en el código, sin try/catch dentro de los casos de uso, reglas de negocio explícitas del reto).
+
+Partes del desarrollo donde se aplicó este flujo:
+
+- **Infraestructura**: migración inicial de EF Core, `docker-compose.yml` (Postgres + API + servicio `tests` como quality gate) y `.env.example`, con verificación de que `docker compose up --build` levanta el sistema completo.
+- **Endpoints CRUD**: listar/crear de `Project`, `BoardColumn` y `KanbanTask`; y luego renombrar/eliminar/reordenar de `BoardColumn` (incluye `GetNeighborsAsync` en `IBoardColumnRepository` y la reutilización de `TaskOrderingService` para el posicionamiento fraccional).
+- **Pruebas unitarias** de cada caso de uso nuevo (xUnit + NSubstitute + FluentAssertions).
+- **Este README**: redacción y mantenimiento de las secciones de setup, decisiones arquitectónicas, pruebas y esta misma sección; embebido del diagrama de la sección 12.
+
+El diseño de dominio de partida (entidades, `TaskOrderingService`, arquitectura hexagonal de puertos/adaptadores) y las decisiones de negocio (reglas de validación, alcance del tiempo real) son autoría del desarrollador, no de la IA — son precisamente el contexto que cada prompt le fijaba a la herramienta antes de pedirle el siguiente incremento. Cada entrega generada se compiló (`dotnet build`) y se corrió contra la suite de pruebas (`dotnet test`) antes de aceptarse: ningún cambio quedó incorporado sin compilar y sin que las 81 pruebas siguieran en verde. Este control de calidad — prompt con contexto explícito, revisión del resultado, verificación con build y tests — fue el mismo para todas las partes del backend en las que se usó IA, sin excepción.
 
 ---
 
